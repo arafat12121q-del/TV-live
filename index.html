@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BD লাইভ TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  :root {
+    --green: #006a4e;
+    --red: #f42a41;
+    --dark: #0a0f0d;
+    --card: #111a16;
+    --border: #1e3028;
+    --text: #e8f5ee;
+    --muted: #6b9980;
+    --glow: rgba(0,106,78,0.35);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Hind Siliguri', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: linear-gradient(135deg, #001a10 0%, #00391f 100%);
+    border-bottom: 2px solid var(--green);
+    padding: 0 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 4px 30px rgba(0,106,78,0.4);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-flag { width: 40px; height: 26px; background: var(--green); border-radius: 3px; position: relative; overflow: hidden; flex-shrink: 0; }
+  .logo-flag::after { content: ''; position: absolute; width: 16px; height: 16px; background: var(--red); border-radius: 50%; top: 50%; left: 52%; transform: translate(-50%, -50%); }
+  .logo-text { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+  .logo-text span { color: var(--red); }
+  .live-badge { background: var(--red); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 3px; letter-spacing: 2px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .channel-count { color: var(--muted); font-size: 13px; }
+
+  .categories { background: #0c1610; border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .categories::-webkit-scrollbar { display: none; }
+  .cat-btn { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .cat-btn:hover { color: var(--text); }
+  .cat-btn.active { color: #4fffb0; border-bottom-color: #4fffb0; }
+
+  .player-section { background: #000; position: relative; }
+  .player-wrap { max-width: 900px; margin: 0 auto; padding: 16px 16px 0; }
+  .player-frame { width: 100%; aspect-ratio: 16/9; background: #050f08; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 0 40px var(--glow); }
+  .player-frame iframe, .player-frame video { width: 100%; height: 100%; border: none; display: block; }
+  .player-info { max-width: 900px; margin: 0 auto; padding: 10px 16px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .now-playing { display: flex; align-items: center; gap: 10px; }
+  .now-playing-dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; animation: pulse 1s infinite; }
+  .now-playing-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .now-playing-cat { font-size: 12px; color: var(--muted); }
+
+  main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  .section-title { font-size: 15px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 28px; }
+
+  .ch-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 8px; cursor: pointer; transition: all 0.2s; text-align: center; position: relative; overflow: hidden; }
+  .ch-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, transparent, rgba(0,106,78,0.08)); opacity: 0; transition: opacity 0.2s; }
+  .ch-card:hover::before { opacity: 1; }
+  .ch-card:hover { border-color: var(--green); transform: translateY(-2px); box-shadow: 0 6px 20px var(--glow); }
+  .ch-card.active { border-color: #4fffb0; background: #0d2018; box-shadow: 0 0 20px rgba(79,255,176,0.2); }
+  .ch-card.active::after { content: '▶'; position: absolute; top: 6px; right: 8px; font-size: 9px; color: #4fffb0; }
+
+  .ch-logo { width: 64px; height: 40px; object-fit: contain; margin: 0 auto 8px; display: block; border-radius: 4px; background: #1a2820; padding: 4px; }
+  .ch-icon { font-size: 26px; margin-bottom: 8px; display: block; line-height: 1; }
+  .ch-name { font-size: 11px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .ch-type { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  footer { background: #060e09; border-top: 1px solid var(--border); padding: 20px; text-align: center; color: var(--muted); font-size: 12px; }
+  footer span { color: var(--red); }
+
+  @media (max-width: 600px) {
+    .logo-text { font-size: 18px; }
+    .grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .ch-card { padding: 8px 5px; }
+    .ch-logo { width: 48px; height: 32px; }
+    .ch-icon { font-size: 20px; }
+    .ch-name { font-size: 10px; }
+  }
+
+  .no-video { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); }
+  .no-video-icon { font-size: 48px; }
+  .no-video-text { font-size: 16px; font-weight: 600; }
+  .no-video-sub { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-flag"></div>
+    <div class="logo-text">BD <span>লাইভ</span> TV</div>
+    <div class="live-badge">LIVE</div>
+  </div>
+  <div class="header-right">
+    <div class="channel-count" id="chCount">লোড হচ্ছে...</div>
+    <a href="https://t.me/arafat2044" target="_blank" style="background:#229ED9;color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:6px;text-decoration:none;display:flex;align-items:center;gap:6px;white-space:nowrap;">✈️ টেলিগ্রাম</a>
+  </div>
+</header>
+
+<div class="categories">
+  <button class="cat-btn active" onclick="filterCat('all', this)">সব</button>
+  <button class="cat-btn" onclick="filterCat('news', this)">📰 নিউজ</button>
+  <button class="cat-btn" onclick="filterCat('entertainment', this)">🎭 বিনোদন</button>
+  <button class="cat-btn" onclick="filterCat('sports', this)">⚽ স্পোর্টস</button>
+  <button class="cat-btn" onclick="filterCat('movies', this)">🎬 মুভিজ</button>
+  <button class="cat-btn" onclick="filterCat('islamic', this)">🕌 ইসলামিক</button>
+  <button class="cat-btn" onclick="filterCat('kids', this)">👶 শিশু</button>
+  <button class="cat-btn" onclick="filterCat('music', this)">🎵 মিউজিক</button>
+  <button class="cat-btn" onclick="filterCat('infotainment', this)">🌍 ইনফো</button>
+  <button class="cat-btn" onclick="filterCat('international', this)">🌐 ইন্টারন্যাশনাল</button>
+</div>
+
+<div class="player-section">
+  <div class="player-wrap">
+    <div class="player-frame" id="playerFrame">
+      <div class="no-video">
+        <div class="no-video-icon">📺</div>
+        <div class="no-video-text">একটি চ্যানেল বেছে নিন</div>
+        <div class="no-video-sub">নিচ থেকে যেকোনো চ্যানেলে ক্লিক করুন</div>
+      </div>
+    </div>
+  </div>
+  <div class="player-info">
+    <div class="now-playing">
+      <div class="now-playing-dot"></div>
+      <div>
+        <div class="now-playing-name" id="playingName">চ্যানেল বাছুন</div>
+        <div class="now-playing-cat" id="playingCat">বাংলাদেশ লাইভ TV</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main id="mainContent"></main>
+
+<footer>
+  তৈরি করা হয়েছে <span>❤</span> দিয়ে | BD লাইভ TV &copy; 2025
+</footer>
+
+<script>
+const channels = [
+  // NEWS - BD
+  { name: "Somoy TV", cat: "news", icon: "📢", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735560559088.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1702/output/index.m3u8" },
+  { name: "Jamuna TV", cat: "news", icon: "🎙️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735560213832.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1701/output/index.m3u8" },
+  { name: "Ekattor HD", cat: "news", icon: "7️⃣1️⃣", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1739963327549.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1705/output/index.m3u8" },
+  { name: "Channel 24 HD", cat: "news", icon: "2️⃣4️⃣", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735556516924.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1703/output/index.m3u8" },
+  { name: "ATN News", cat: "news", icon: "📡", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1739962961772.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1706/output/index.m3u8" },
+  { name: "News 24 HD", cat: "news", icon: "🔴", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770186895850.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1708/output/index.m3u8" },
+  { name: "Star News", cat: "news", icon: "⭐", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770189826301.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1710/output/index.m3u8" },
+  { name: "DBC News HD", cat: "news", icon: "🔔", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770186306600.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1728/output/index.m3u8" },
+  { name: "Independent TV", cat: "news", icon: "📡", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778087037971.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1704/output/index.m3u8" },
+  { name: "Al Jazeera", cat: "news", icon: "🌐", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1777454219313.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1721/output/index.m3u8" },
+  { name: "BBC News", cat: "news", icon: "🔵", logo: "https://seeklogo.com/images/B/bbc-news-logo-8648ABD044-seeklogo.com.png", m3u8: "https://cdn4.skygo.mn/live/disk1/BBC_News/HLSv3-FTA/BBC_News-avc1_3000000=8-mp4a_208000_eng=2.m3u8" },
+  { name: "CNN", cat: "news", icon: "📺", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/VC6Q-JQBv9knK3AHhTXt/posters/63e79814-8fcf-4c3e-bb66-408b2a402613.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/cnn/playlist.m3u8" },
+
+  // ENTERTAINMENT - BD
+  { name: "BTV", cat: "entertainment", icon: "📺", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778082545894.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1709/output/index.m3u8" },
+  { name: "NTV", cat: "entertainment", icon: "🎬", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735560841094.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1716/output/index.m3u8" },
+  { name: "Bangla Vision", cat: "entertainment", icon: "👁️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735561344354.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1715/output/index.m3u8" },
+  { name: "Deepto TV HD", cat: "entertainment", icon: "💡", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1742713000749.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1711/output/index.m3u8" },
+  { name: "Maasranga TV", cat: "entertainment", icon: "🌊", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1773680325498.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1722/output/index.m3u8" },
+  { name: "Channel I HD", cat: "entertainment", icon: "🎭", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1740567626692.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1723/output/index.m3u8" },
+  { name: "Channel 9 HD", cat: "entertainment", icon: "9️⃣", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770188008067.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1729/output/index.m3u8" },
+  { name: "SRK TV", cat: "entertainment", icon: "🎪", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1746005940155.png", m3u8: "https://srknowapp.ncare.live/srktvhlswodrm/srktv.stream/playlist.m3u8" },
+  { name: "Ekushey TV", cat: "entertainment", icon: "📡", logo: "https://s4.gifyu.com/images/image534fa27d7683f33d.png", m3u8: "http://210.4.72.204/hls-live/livepkgr/_definst_/liveevent/livestream3.m3u8" },
+  { name: "Deepto TV", cat: "entertainment", icon: "💡", logo: "https://upload.wikimedia.org/wikipedia/en/3/31/Deepto_TV_logo.png", m3u8: "https://byphdgllyk.gpcdn.net/hls/deeptotv/0_1/index.m3u8" },
+  { name: "MY TV", cat: "entertainment", icon: "📺", logo: "https://raw.githubusercontent.com/subirkumarpaul/Logo/main/My%20TV.svg.png", m3u8: "https://mytvbangla.com/0.m3u8" },
+  { name: "Maasranga HD", cat: "entertainment", icon: "🌊", logo: "https://static.wikia.nocookie.net/etv-gspn-bangla/images/a/a3/Maasranga_TV_HD_logo.png", m3u8: "http://mtv.sunplex.live/MAASRANGA-TV/index.m3u8" },
+  { name: "NTV (Toffee)", cat: "entertainment", icon: "🎬", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/wHLVIJ4B7a1HdMSjaGLJ/posters/83b89557-3ae8-4ca8-8c5d-3c617359c738.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/n_tv/playlist.m3u8" },
+  { name: "Ekattor TV", cat: "entertainment", icon: "7️⃣1️⃣", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/PS_La5oBNnOkwJLWLRN_/posters/e8c444fd-ee3b-4bf3-bb0a-f969bc295f82.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/ekattor_tv/playlist.m3u8" },
+  { name: "Rajdhani TV", cat: "entertainment", icon: "🏙️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/KECGB54BuUSiBsg_dHyj/posters/58af9c58-ed80-458c-af13-cf381680cec6.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/rajdhani_tv/playlist.m3u8" },
+  { name: "Ekhon TV", cat: "entertainment", icon: "📡", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/o3v235oBcqxnFHJBkAdC/posters/159af631-796d-4342-a2a7-c272f32bcd32.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/ekhon_tv/playlist.m3u8" },
+  { name: "Global TV", cat: "entertainment", icon: "🌍", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/0y_tDJsBNnOkwJLWNrdE/posters/2ff058e1-630f-4657-8dc6-b677e65642c5.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/global_tv/playlist.m3u8" },
+  { name: "Bangla TV", cat: "entertainment", icon: "📺", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/JiK-_poBEef-9-uVZv6L/posters/757a328e-70d6-45de-b093-0a843c69ade7.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/bangla_tv/playlist.m3u8" },
+  { name: "Channel S", cat: "entertainment", icon: "📡", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/WyPuDJsBEef-9-uVUA_z/posters/ea20055c-a824-443c-8083-ce8e2da8b922.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/channel_s_tv/playlist.m3u8" },
+  { name: "Ananda TV", cat: "entertainment", icon: "😊", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/wCM3l5sBEef-9-uVXFvD/posters/d80f7aee-5bd7-4edc-97eb-ead0e3ebbe09.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/anandatv/playlist.m3u8" },
+  { name: "Bijoy TV", cat: "entertainment", icon: "🏆", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/bns4l5sBcqxnFHJBVZ32/posters/feaf9f3d-cc3b-4a3d-81a3-2cb703e561eb.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/bijoytv/playlist.m3u8" },
+  { name: "Asian TV", cat: "entertainment", icon: "🌏", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/MyK__poBEef-9-uVmf5l/posters/1eadef5b-28e7-4dc2-b42f-c67a3357c9a0.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/asian_tv/playlist.m3u8" },
+  { name: "Desh TV", cat: "entertainment", icon: "🗺️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/6Hz1PJwBcqxnFHJBhgkV/posters/845f1e3f-987a-47cc-a48d-ee12d8f4d419.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/desh_tv/playlist.m3u8" },
+  { name: "Nexus TV", cat: "entertainment", icon: "🔗", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/FHz5PJwBcqxnFHJBdAqW/posters/419869ac-8ddf-4909-86c1-b69f0a3adf13.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/nexus_tv/playlist.m3u8" },
+  { name: "Mohona TV", cat: "entertainment", icon: "🌊", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/-Xz3PJwBcqxnFHJBDAlE/posters/fecea361-8b60-4aeb-a530-6e27eee8178a.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/mohona_tv/playlist.m3u8" },
+  { name: "Deshe Bideshe", cat: "entertainment", icon: "✈️", logo: "https://pbs.twimg.com/profile_images/739539785304281088/zMwNO936_400x400.jpg", m3u8: "https://dbcanada.sonarbanglatv.com/deshebideshe/dbtv/index.m3u8" },
+  { name: "Toffee Dramas", cat: "entertainment", icon: "🎭", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/DNMXs5UBm1RY_In7IJ72/posters/5638c4e8-36ba-4e8e-848e-233183b3ec17.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/toffee_drama/playlist.m3u8" },
+
+  // SPORTS
+  { name: "T Sports HD", cat: "sports", icon: "🏏", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1735557114648.png", m3u8: "https://tvsen7.aynaott.com/tsports-hd/index.m3u8?e=1779283784&u=78be6644-0a65-48ec-81a4-089ac65a2619&token=3b4c5a2cfa872fa7f91ffbfb4aa0f658" },
+  { name: "Sony Ten 1 HD", cat: "sports", icon: "🏆", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/py5j-JQBv9knK3AHxDTY/posters/ea3358b9-2bec-4615-a889-daa2e396c74c.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_sports_1_hd/playlist.m3u8" },
+  { name: "Sony Ten 2 HD", cat: "sports", icon: "⚽", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/sy5m-JQBv9knK3AHYTTk/posters/5e40bf0e-633f-4d37-a3b2-3d606f0ac19a.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_sports_2_hd/playlist.m3u8" },
+  { name: "Sony Ten 5 HD", cat: "sports", icon: "🎯", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/vi5n-JQBv9knK3AHqzTC/posters/d171fd4d-0369-4213-b0c5-e241974f5459.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_sports_5_hd/playlist.m3u8" },
+  { name: "Sony Ten Cricket", cat: "sports", icon: "🏏", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ra2x_pQBrjBfS2_RWG9l/posters/795170c2-ec78-457e-9fa0-54a23d23361c.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/ten_cricket/playlist.m3u8" },
+  { name: "Eurosport HD", cat: "sports", icon: "🌍", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Uy6Q-JQBv9knK3AHcDUQ/posters/01709bcd-6d53-4710-a64f-bc49cecf1d61.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/euro_sports_hd/playlist.m3u8" },
+  { name: "Sports Legends", cat: "sports", icon: "🏅", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770377900139.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/sportslegends/playlist.m3u8" },
+  { name: "Flash Guys HD", cat: "sports", icon: "⚡", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770378074527.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/flashguys/playlist.m3u8" },
+  { name: "Sports Range", cat: "sports", icon: "🎯", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380601958.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/sportrange/playlist.m3u8" },
+  { name: "Thunder Er", cat: "sports", icon: "⛈️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380791303.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/thunder/playlist.m3u8" },
+  { name: "Fighters", cat: "sports", icon: "🥊", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380942670.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/fighter/playlist.m3u8" },
+  { name: "Crazy Ex", cat: "sports", icon: "🏎️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778085745609.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/crazy_ex/playlist.m3u8" },
+
+  // INTERNATIONAL SPORTS
+  { name: "Star Sports 1", cat: "international", icon: "⭐", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/16-by-xfireflix.png", m3u8: "https://cdn6.zohanayaan.com:1686/hls/star1in.m3u8?md5=3eeFyt-HJ_rUdHpRfD0Znw&expires=1780611614", referer: "https://executeandship.com/" },
+  { name: "Star Sports Hindi", cat: "international", icon: "⭐", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/1-by-xfireflix.png", m3u8: "https://cdn9.zohanayaan.com:1686/hls/starhindi.m3u8?md5=4dHOAD_DTJuXEtQvp70NNg&expires=1780611614" },
+  { name: "PTV Sports", cat: "international", icon: "🏏", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/20-by-xfireflix.png", m3u8: "https://cdn5.zohanayaan.com:1686/hls/ptvpk.m3u8?md5=UozGbDh7iRu3EmXnwdaBkA&expires=1780611614" },
+  { name: "Willow HD", cat: "international", icon: "🏏", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/38-by-xfireflix.png", m3u8: "https://cdn9.zohanayaan.com:1686/hls/willowusa.m3u8?md5=G9-M0H21s1DNYSj4iMPbAQ&expires=1780611614" },
+  { name: "Willow HD 2", cat: "international", icon: "🏏", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/8-by-xfireflix.png", m3u8: "https://cdn7.zohanayaan.com:1686/hls/willowextra.m3u8?md5=jK7Hc-Fi71oF1GkuGz-pQg&expires=1780611614" },
+  { name: "Ten Sports", cat: "international", icon: "🏆", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/10-by-xfireflix.png", m3u8: "https://cdn5.zohanayaan.com:1686/hls/tenspk.m3u8?md5=I4dFbJoFOrElBhtlnfOcVg&expires=1780611614" },
+  { name: "A Sports HD", cat: "international", icon: "🅰️", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/12-by-xfireflix.png", m3u8: "https://cdn1.zohanayaan.com:1686/hls/asportshd.m3u8?md5=Qw8r3lTnLi5ctXPSr9E3NQ&expires=1780611615" },
+  { name: "Sky Sports Cricket", cat: "international", icon: "🏏", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/9-by-xfireflix.png", m3u8: "https://cdn10.zohanayaan.com:1686/hls/skyscric.m3u8?md5=afwk7aa949Cbu4vLNLIwZA&expires=1780611615" },
+  { name: "Sky Sports Main", cat: "international", icon: "⛅", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/18-by-xfireflix.png", m3u8: "https://cdn8.zohanayaan.com:1686/hls/skysme.m3u8?md5=NK9tCp8ZOojLyq1cDMunTw&expires=1780611615" },
+  { name: "TNT 1", cat: "international", icon: "💥", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/tnt.png", m3u8: "https://cdn10.zohanayaan.com:1686/hls/bbtsp1.m3u8?md5=auQUoQjPQlVcWHyhMB8Lvw&expires=1780611615" },
+  { name: "TNT 2", cat: "international", icon: "💥", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/tnt.png", m3u8: "https://cdn2.zohanayaan.com:1686/hls/bbtsp2.m3u8?md5=iCqaisElbdVSddEaPEdb9w&expires=1780611615" },
+  { name: "TNT 3", cat: "international", icon: "💥", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/tnt.png", m3u8: "https://cdn10.zohanayaan.com:1686/hls/bbtsp3.m3u8?md5=yekeunhTrq6SWJt9oTup3g&expires=1780611615" },
+  { name: "TNT 4 ESPN", cat: "international", icon: "💥", logo: "https://abusaeeidx.github.io/Tv-Channel-Logo/CricHD/runded/tnt.png", m3u8: "https://cdn1.zohanayaan.com:1686/hls/bbtespn.m3u8?md5=rr_sJ2G119wVHbljPt-pUQ&expires=1780611615" },
+
+  // MOVIES
+  { name: "Cineedge HD", cat: "movies", icon: "🎬", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770347851305.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/cineedge/playlist.m3u8" },
+  { name: "Uniques HD", cat: "movies", icon: "🎥", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770347327658.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/uniques/playlist.m3u8" },
+  { name: "Superrix HD", cat: "movies", icon: "🎦", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770348388925.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/superrix/playlist.m3u8" },
+  { name: "Screem", cat: "movies", icon: "📽️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770312098339.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/screem/playlist.m3u8" },
+  { name: "Crimes", cat: "movies", icon: "🔍", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380126540.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/crimes/playlist.m3u8" },
+  { name: "True Stories", cat: "movies", icon: "📖", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380306806.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/truestories/playlist.m3u8" },
+  { name: "Intelligence", cat: "movies", icon: "🧠", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770380460488.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/intelligence/playlist.m3u8" },
+  { name: "Originals", cat: "movies", icon: "🎭", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778085327477.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/originals/playlist.m3u8" },
+  { name: "Movie Bangla", cat: "movies", icon: "🎞️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/CXz4PJwBcqxnFHJBPwrG/posters/2f913e34-3a6c-45e6-9f1f-97bf129a2ff5.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/movie_bangla/playlist.m3u8" },
+  { name: "Toffee Movies", cat: "movies", icon: "🍬", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/b60Ss5UBrjBfS2_RJPb8/posters/2e5b8ff3-9deb-4040-947e-4ce6a4674ef0.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/toffee_movie/playlist.m3u8" },
+  { name: "Sony MAX HD", cat: "movies", icon: "🎬", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ai51-JQBv9knK3AH_jWs/posters/663e52a6-1a9f-4458-b4aa-7c03d84972f1.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_max_hd/playlist.m3u8" },
+  { name: "Sony MAX", cat: "movies", icon: "🎥", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ay52-JQBv9knK3AHFDWt/posters/00afb30b-3c19-4c4c-abd8-891db94e4767.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_max/playlist.m3u8" },
+  { name: "Sony MAX 2", cat: "movies", icon: "🎦", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ii5_-JQBv9knK3AHLDV3/posters/d961cc87-81b6-4b30-8414-8c0af2774818.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonymax_2/playlist.m3u8" },
+  { name: "Sony PIX HD", cat: "movies", icon: "📷", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ly6C-JQBv9knK3AHOjXt/posters/252e64ca-8d99-46e7-a951-e10c1703c11d.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonypix_hd/playlist.m3u8" },
+  { name: "Zee Bangla Cinema", cat: "movies", icon: "🎞️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/-C7MX5UBv9knK3AHdKOi/posters/90d82846-70b9-44ee-9f7e-e440f00b3be8.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_bangla_cinema/playlist.m3u8" },
+  { name: "Zee Cinema HD", cat: "movies", icon: "🎬", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/5y7HX5UBv9knK3AHs6Nk/posters/7582fb79-c15f-4247-ba5b-1d2dd27f3d71.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_cinema_hd/playlist.m3u8" },
+  { name: "& Pictures HD", cat: "movies", icon: "🖼️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/QMwWnZUBtpl-Sbt7S2sx/posters/8cad9a82-842a-47bf-a060-f17011f11c07.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/andpicture_hd/playlist.m3u8" },
+  { name: "B4U Movies", cat: "movies", icon: "🎥", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/PC6F-JQBv9knK3AHlTUO/posters/fb0243ba-39a0-4101-a78c-c197be550c6c.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/b4u_movies/playlist.m3u8" },
+  { name: "Zee Bollywood", cat: "movies", icon: "💃", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/OnSlPJYBcqxnFHJB6lFX/posters/d9ccb2a6-227f-4a41-8714-efaddab5cf5e.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_bollywood/playlist.m3u8" },
+  { name: "Zee Action", cat: "movies", icon: "💥", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Pc3RD5YBtpl-Sbt7doxr/posters/33d667ae-bcc3-4f6b-b376-76c552136923.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_action/playlist.m3u8" },
+
+  // ISLAMIC
+  { name: "Islamic TV", cat: "islamic", icon: "☪️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1772728412891.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1724/output/index.m3u8" },
+  { name: "Al Quran", cat: "islamic", icon: "📿", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778086065071.png", m3u8: "https://owrcovcrpy.gpcdn.net/bpk-tv/1713/output/index.m3u8" },
+  { name: "Islamic TV (Toffee)", cat: "islamic", icon: "🕌", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/jehEA54BIxFjn23xAmdw/posters/2c276556-cbcd-4467-b627-4394bb20f250.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/islamic_tv/playlist.m3u8" },
+
+  // KIDS
+  { name: "BuddyStar HD", cat: "kids", icon: "⭐", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770379038530.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/buddystar/playlist.m3u8" },
+  { name: "Joy", cat: "kids", icon: "😄", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770378874717.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/joy/playlist.m3u8" },
+  { name: "Funny Junior HD", cat: "kids", icon: "😂", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770379573329.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/funnyjunior/playlist.m3u8" },
+  { name: "Smarty", cat: "kids", icon: "🤓", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770381107924.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/smarty/playlist.m3u8" },
+  { name: "Lucky Family", cat: "kids", icon: "🍀", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770381248531.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/luckyfamily/playlist.m3u8" },
+  { name: "Kids Stars", cat: "kids", icon: "🌟", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770381398090.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/kidsstars/playlist.m3u8" },
+  { name: "Nikki", cat: "kids", icon: "👧", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778083459294.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/nikky/playlist.m3u8" },
+  { name: "POGO", cat: "kids", icon: "🐾", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ny6W-JQBv9knK3AHujXC/posters/7e7c2afe-a663-4c09-983a-2d0fa0f1ca9a.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/pogo_sd/playlist.m3u8" },
+  { name: "Sony YAY", cat: "kids", icon: "🎉", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/IC5_-JQBv9knK3AHFDXh/posters/36df4012-80f2-4a98-9970-3b663f62093f.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonyyay/playlist.m3u8" },
+  { name: "Discovery Kids", cat: "kids", icon: "🔭", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/1i6e-JQBv9knK3AHHTXR/posters/325887a7-84ea-4cf9-a6fd-6111ddc25671.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovery_kids/playlist.m3u8" },
+  { name: "Cartoon Network", cat: "kids", icon: "🦄", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/mC6W-JQBv9knK3AHfDWA/posters/d2a02d82-fde4-4769-a6d9-95c0560e2120.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/cartoon_network_sd/playlist.m3u8" },
+  { name: "Cartoon Network HD", cat: "kids", icon: "🎨", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/1y6e-JQBv9knK3AHNDWb/posters/ee9ba01b-1bcf-436b-b273-7b857f0810fb.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/cartoon_network_hd/playlist.m3u8" },
+
+  // MUSIC
+  { name: "MUSIC BANGLA", cat: "music", icon: "🎵", logo: "https://static.wikia.nocookie.net/logopedia/images/7/75/Music_Bangla_new.jpeg", m3u8: "http://live.matribhumitv.com/music-bangla/index.m3u8" },
+  { name: "Party Universe", cat: "music", icon: "🎉", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778083145889.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/partyuniverse/playlist.m3u8" },
+  { name: "B4U Music", cat: "music", icon: "🎶", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/PS6F-JQBv9knK3AHqjVz/posters/0f83ee72-be0f-4861-94df-30b158d3df8d.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/b4u_music/playlist.m3u8" },
+  { name: "Zing", cat: "music", icon: "🎤", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/DK8dd5YBrjBfS2_Ru22e/posters/a4e57fd0-1853-4540-a9bc-0265ee43b5cb.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zing_sd/playlist.m3u8" },
+  { name: "Zee Anmol", cat: "music", icon: "💎", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/7x0Jd5YBEef-9-uVv_Gy/posters/f9c07bfc-9fde-40d0-91a1-e28c5840f400.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_anmol/playlist.m3u8" },
+
+  // INFOTAINMENT
+  { name: "Luxel HD", cat: "infotainment", icon: "💎", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1770378560772.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/luxell/playlist.m3u8" },
+  { name: "Delicious", cat: "infotainment", icon: "🍽️", logo: "https://tstatic.akash-go.com/cms-ui/images/custom-content/1778086478755.png", m3u8: "https://nomawnoijl.gpcdn.net/akash/delicious/playlist.m3u8" },
+  { name: "TLC HD", cat: "infotainment", icon: "🌿", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/7S6j-JQBv9knK3AHbzXC/posters/0973097c-bc5c-4b28-aaca-f04d6f6cb5e2.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/tlc_hd/playlist.m3u8" },
+  { name: "TLC", cat: "infotainment", icon: "🌿", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/7C6j-JQBv9knK3AHVzUA/posters/e8f84105-5efe-4e91-a0d4-18a0849cf2f2.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/tlc_sd/playlist.m3u8" },
+  { name: "Animal Planet", cat: "infotainment", icon: "🦁", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ny61-JQBv9knK3AHgzZ7/posters/0909b36a-afd5-426a-93b3-4512800977db.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/animal_planet_sd/playlist.m3u8" },
+  { name: "Animal Planet HD", cat: "infotainment", icon: "🐘", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ni61-JQBv9knK3AHcDYc/posters/c16e8633-6b2a-401a-9cd6-ac26a4fcdedb.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/animal_planet_hd/playlist.m3u8" },
+  { name: "Sony BBC Earth", cat: "infotainment", icon: "🌍", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/MC6C-JQBv9knK3AHUzUT/posters/a8c32fd3-2ba7-437c-85ac-de2f1b2fa6ca.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonybbc_earth_hd/playlist.m3u8" },
+  { name: "Discovery", cat: "infotainment", icon: "🔭", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/KS6x-JQBv9knK3AHwDZy/posters/6594d216-aaca-4eee-b6f5-bbc6b80feb15.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovery_sd/playlist.m3u8" },
+  { name: "Discovery HD", cat: "infotainment", icon: "🌌", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/KC6x-JQBv9knK3AHqjYc/posters/55e554f1-dbbb-47bd-97fe-fca878726c4c.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovery_hd/playlist.m3u8" },
+  { name: "Discovery Science", cat: "infotainment", icon: "🧬", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/AS6s-JQBv9knK3AHDTZb/posters/eab8fd0f-9351-464c-b45e-332f38b49f4b.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovery_science/playlist.m3u8" },
+  { name: "Discovery Turbo", cat: "infotainment", icon: "🏎️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/Ay6s-JQBv9knK3AHJTY1/posters/e8f65578-e82d-4e4a-a1ff-073becc5bd71.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovery_turbo/playlist.m3u8" },
+  { name: "Investigation Disc.", cat: "infotainment", icon: "🕵️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ay7uX5UBv9knK3AHs6TI/posters/deb3c186-b2e1-4a91-aafb-d86f9128b851.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/discovary_investigation_hd/playlist.m3u8" },
+  { name: "Zee Bangla", cat: "infotainment", icon: "🌟", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/kK2aX5UBrjBfS2_RBcKf/posters/ba5dd8dc-4f87-414a-b57f-c9ecdeda5253.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_bangla/playlist.m3u8" },
+  { name: "Zee TV HD", cat: "infotainment", icon: "📺", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ltPQX5UBm1RY_In7b3F1/posters/d039d9df-9877-4969-a0b6-56888ebe2385.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_tv_hd/playlist.m3u8" },
+  { name: "Zee Cafe", cat: "infotainment", icon: "☕", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/U3QEd5YBcqxnFHJBpYzc/posters/8bc7ae1b-1a46-4b76-bdb1-13c7dbd3a95c.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/zee_cafe_hd/playlist.m3u8" },
+  { name: "Sony Aath", cat: "infotainment", icon: "8️⃣", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/xi6xX5UBv9knK3AH9aMk/posters/f4db1c12-b10f-46e8-a09b-e0efb8820970.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonyaath/playlist.m3u8" },
+  { name: "Sony Entertainment", cat: "infotainment", icon: "🎪", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/2S5t-JQBv9knK3AHJTTW/posters/ae74f943-77c9-4395-a16c-8ed84b439080.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sony_entertainment/playlist.m3u8" },
+  { name: "Sony Entertainment HD", cat: "infotainment", icon: "🎭", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/-y50-JQBv9knK3AHLzSn/posters/0ab48ac0-ec84-4ca2-9601-746ff3cb809e.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonyentertainmnt_hd/playlist.m3u8" },
+  { name: "Sony SAB HD", cat: "infotainment", icon: "😄", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/ES55-JQBv9knK3AHNDWC/posters/13411be9-62b9-4a99-a062-b6e91dfb1099.webp", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/sonysab_hd/playlist.m3u8" },
+  { name: "&TV HD", cat: "infotainment", icon: "📺", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/5cwRnZUBtpl-Sbt7wWrN/posters/5779ade3-e9ba-4107-b3da-bae6f891500a.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/and_tv_hd/playlist.m3u8" },
+  { name: "HUM", cat: "infotainment", icon: "🎵", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/0C63X5UBv9knK3AHxaOs/posters/6dce1143-1045-4fec-ac4f-86d2bfb32447.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/hum_tv/playlist.m3u8" },
+  { name: "HUM Masala", cat: "infotainment", icon: "🌶️", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/T9O9X5UBm1RY_In7UXFv/posters/30e0f372-eb3e-4cf9-be1e-b196a40c2fc7.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/hum_masala/playlist.m3u8" },
+  { name: "HUM Sitaray", cat: "infotainment", icon: "⭐", logo: "https://assets-prod.services.toffeelive.com/f_png,w_300,q_85/WtPBX5UBm1RY_In7mXEU/posters/188d51f6-aeef-41ed-835b-e25ff911e209.png", m3u8: "https://bldcmprod-cdn.toffeelive.com/cdn/live/hum_sitaray/playlist.m3u8" },
+];
+
+let currentCat = 'all';
+let activeCard = null;
+let currentHls = null;
+
+const catLabels = {
+  news: '📰 নিউজ',
+  entertainment: '🎭 বিনোদন',
+  sports: '⚽ স্পোর্টস',
+  movies: '🎬 মুভিজ',
+  islamic: '🕌 ইসলামিক',
+  kids: '👶 শিশু',
+  music: '🎵 মিউজিক',
+  infotainment: '🌍 ইনফো',
+  international: '🌐 ইন্টারন্যাশনাল স্পোর্টস',
+};
+
+function buildGrid() {
+  const filtered = currentCat === 'all' ? channels : channels.filter(c => c.cat === currentCat);
+  const catMap = {};
+  filtered.forEach(ch => {
+    if (!catMap[ch.cat]) catMap[ch.cat] = [];
+    catMap[ch.cat].push(ch);
+  });
+
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '';
+
+  for (const cat in catMap) {
+    const section = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'section-title';
+    title.textContent = catLabels[cat] || cat;
+    section.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
+    catMap[cat].forEach(ch => {
+      const card = document.createElement('div');
+      card.className = 'ch-card';
+      const imgOrIcon = ch.logo
+        ? `<img class="ch-logo" src="${ch.logo}" alt="${ch.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">`
+          + `<span class="ch-icon" style="display:none">${ch.icon}</span>`
+        : `<span class="ch-icon">${ch.icon}</span>`;
+      card.innerHTML = `
+        ${imgOrIcon}
+        <div class="ch-name">${ch.name}</div>
+        <div class="ch-type">${catLabels[ch.cat] || ch.cat}</div>
+      `;
+      card.addEventListener('click', () => playChannel(ch, card));
+      grid.appendChild(card);
+    });
+
+    section.appendChild(grid);
+    main.appendChild(section);
+  }
+
+  document.getElementById('chCount').textContent = channels.length + '+ চ্যানেল';
+}
+
+function playChannel(ch, card) {
+  if (activeCard) activeCard.classList.remove('active');
+  card.classList.add('active');
+  activeCard = card;
+
+  document.getElementById('playingName').textContent = ch.name;
+  document.getElementById('playingCat').textContent = catLabels[ch.cat] || ch.cat;
+
+  const frame = document.getElementById('playerFrame');
+
+  if (currentHls) { currentHls.destroy(); currentHls = null; }
+
+  if (ch.m3u8) {
+    frame.innerHTML = `<video id="hlsVideo" controls autoplay playsinline style="width:100%;height:100%;background:#000;"></video>`;
+    const video = document.getElementById('hlsVideo');
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: false });
+      currentHls = hls;
+      hls.loadSource(ch.m3u8);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+      hls.on(Hls.Events.ERROR, (e, data) => {
+        if (data.fatal) {
+          frame.innerHTML = `<div class="no-video"><div class="no-video-icon">⚠️</div><div class="no-video-text">স্ট্রিম লোড হয়নি</div><div class="no-video-sub">চ্যানেলটি বর্তমানে অফলাইন হতে পারে</div></div>`;
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = ch.m3u8;
+      video.play().catch(()=>{});
+    }
+  } else if (ch.ytId) {
+    frame.innerHTML = `<iframe src="https://www.youtube.com/embed/live_stream?channel=${ch.ytId}&autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  }
+
+  document.querySelector('.player-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildGrid();
+}
+
+buildGrid();
+</script>
+</body>
+</html>
+HTMLEOF
+echo "Done"
